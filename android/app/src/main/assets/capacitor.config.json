@@ -1,6 +1,6 @@
 {
-  "appId": "io.ionic.teatasterng",
-  "appName": "tea-taster",
-  "webDir": "www",
-  "bundledWebRuntime": false
+	"appId": "io.ionic.teatasterng",
+	"appName": "tea-taster",
+	"webDir": "www",
+	"bundledWebRuntime": false
 }
