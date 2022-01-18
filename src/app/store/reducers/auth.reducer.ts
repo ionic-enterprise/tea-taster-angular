@@ -1,9 +1,9 @@
 import { createReducer, on } from '@ngrx/store';
 import * as Actions from '@app/store/actions';
-import { Session } from '@app/models';
+import { User } from '@app/models';
 
 export interface AuthState {
-  session?: Session;
+  user?: User;
   loading: boolean;
   errorMessage: string;
 }
@@ -25,9 +25,9 @@ export const reducer = createReducer(
   ),
   on(
     Actions.loginSuccess,
-    (state, { session }): AuthState => ({
+    (state, { user }): AuthState => ({
       ...state,
-      session,
+      user,
       loading: false,
     })
   ),
@@ -48,7 +48,7 @@ export const reducer = createReducer(
     })
   ),
   on(Actions.logoutSuccess, (state): AuthState => {
-    const { session, ...newState } = {
+    const { user, ...newState } = {
       ...state,
       loading: false,
     };
@@ -62,15 +62,19 @@ export const reducer = createReducer(
       errorMessage,
     })
   ),
-  on(
-    Actions.sessionRestored,
-    (state, { session }): AuthState => ({
-      ...state,
-      session,
-    })
-  ),
   on(Actions.unauthError, (state): AuthState => {
-    const { session, ...newState } = state;
+    const { user, ...newState } = state;
     return newState;
-  })
+  }),
+  on(Actions.sessionLocked, (state): AuthState => {
+    const { user, ...newState } = state;
+    return newState;
+  }),
+  on(
+    Actions.unlockSessionSuccess,
+    (state, { user }): AuthState => ({
+      ...state,
+      user,
+    })
+  )
 );

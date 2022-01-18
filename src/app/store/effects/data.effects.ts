@@ -1,34 +1,37 @@
 import { Injectable } from '@angular/core';
-import { TastingNotesService, TeaService } from '@app/core';
+import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { from, of } from 'rxjs';
+import { catchError, map, mergeMap } from 'rxjs/operators';
+
 import {
-  initialLoadFailure,
-  initialLoadSuccess,
   loginSuccess,
+  initialLoadSuccess,
+  initialLoadFailure,
+  notesPageLoaded,
+  notesPageLoadedFailure,
+  notesPageLoadedSuccess,
   noteDeleted,
   noteDeletedFailure,
   noteDeletedSuccess,
   noteSaved,
   noteSavedFailure,
   noteSavedSuccess,
-  notesPageLoaded,
-  notesPageLoadedFailure,
-  notesPageLoadedSuccess,
-  sessionRestored,
+  startup,
   teaDetailsChangeRating,
   teaDetailsChangeRatingFailure,
   teaDetailsChangeRatingSuccess,
+  unlockSessionSuccess,
 } from '@app/store/actions';
-import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { from, of } from 'rxjs';
-import { catchError, map, mergeMap } from 'rxjs/operators';
+import { AuthenticationService, TastingNotesService, TeaService } from '@app/core';
 
 @Injectable()
 export class DataEffects {
   sessionLoaded$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(loginSuccess, sessionRestored),
+      ofType(loginSuccess, startup, unlockSessionSuccess),
       mergeMap(() =>
-        this.teaService.getAll().pipe(
+        from(this.auth.isAuthenticated()).pipe(
+          mergeMap((isAuth) => (isAuth ? this.teaService.getAll() : of([]))),
           map((teas) => initialLoadSuccess({ teas })),
           catchError(() =>
             of(
@@ -120,6 +123,7 @@ export class DataEffects {
 
   constructor(
     private actions$: Actions,
+    private auth: AuthenticationService,
     private tastingNotesService: TastingNotesService,
     private teaService: TeaService
   ) {}

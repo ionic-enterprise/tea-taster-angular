@@ -1,4 +1,3 @@
-import { Session, TastingNote, Tea } from '@app/models';
 import {
   initialLoadFailure,
   initialLoadSuccess,
@@ -13,45 +12,12 @@ import {
   notesPageLoaded,
   notesPageLoadedFailure,
   notesPageLoadedSuccess,
-  sessionRestored,
   teaDetailsChangeRatingFailure,
   teaDetailsChangeRatingSuccess,
+  unlockSessionSuccess,
 } from '@app/store/actions';
 import { DataState, initialState, reducer } from './data.reducer';
-
-const session: Session = {
-  user: {
-    id: 314,
-    firstName: 'Kevin',
-    lastName: 'Minion',
-    email: 'goodtobebad@gru.org',
-  },
-  token: '39948503',
-};
-
-const teas: Array<Tea> = [
-  {
-    id: 1,
-    name: 'Green',
-    image: 'assets/img/green.jpg',
-    description: 'Green teas are green',
-    rating: 5,
-  },
-  {
-    id: 2,
-    name: 'Black',
-    image: 'assets/img/black.jpg',
-    description: 'Black teas are not green',
-    rating: 1,
-  },
-  {
-    id: 3,
-    name: 'Herbal',
-    image: 'assets/img/herbal.jpg',
-    description: 'Herbal teas are not even tea',
-    rating: 4,
-  },
-];
+import { TastingNote, Tea, User } from '@app/models';
 
 const notes: Array<TastingNote> = [
   {
@@ -80,6 +46,34 @@ const notes: Array<TastingNote> = [
   },
 ];
 
+const user: User = {
+  id: 314,
+  firstName: 'Kevin',
+  lastName: 'Minion',
+  email: 'goodtobebad@gru.org',
+};
+
+const teas: Array<Tea> = [
+  {
+    id: 1,
+    name: 'Green',
+    image: 'assets/img/green.jpg',
+    description: 'Green teas are green',
+  },
+  {
+    id: 2,
+    name: 'Black',
+    image: 'assets/img/black.jpg',
+    description: 'Black teas are not green',
+  },
+  {
+    id: 3,
+    name: 'Herbal',
+    image: 'assets/img/herbal.jpg',
+    description: 'Herbal teas are not even tea',
+  },
+];
+
 const createState = (stateChanges: { teas?: Array<Tea>; loading?: boolean; errorMessage?: string }): DataState => ({
   ...initialState,
   ...stateChanges,
@@ -92,13 +86,13 @@ it('returns the default state', () => {
 [
   {
     description: 'Login Success: sets the loading flag and clears any error message',
-    action: loginSuccess({ session }),
+    action: loginSuccess({ user }),
     begin: { errorMessage: 'Unknown error with data load' },
     end: { loading: true },
   },
   {
-    description: 'Session Restored: sets the loading flag and clears any error message',
-    action: sessionRestored({ session }),
+    description: 'Unlock Session Success: sets the loading flag and clears any error message',
+    action: unlockSessionSuccess({ user }),
     begin: { errorMessage: 'Unknown error with data load' },
     end: { loading: true },
   },
@@ -115,7 +109,7 @@ it('returns the default state', () => {
     end: { teas },
   },
   {
-    description: 'Logout Success: clears the teas',
+    description: 'Logout Success: clears the data',
     action: logoutSuccess(),
     begin: { teas, notes },
     end: {},
@@ -128,7 +122,9 @@ it('returns the default state', () => {
   },
   {
     description: 'Tea Details Change Rating Failure: sets the error message',
-    action: teaDetailsChangeRatingFailure({ errorMessage: 'The save blew some chunks' }),
+    action: teaDetailsChangeRatingFailure({
+      errorMessage: 'The save blew some chunks',
+    }),
     begin: { teas },
     end: { teas, errorMessage: 'The save blew some chunks' },
   },

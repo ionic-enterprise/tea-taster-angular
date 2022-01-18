@@ -10,7 +10,7 @@
     "lint": "ng lint",
     "ng": "ng",
     "prepare": "husky install",
-    "start": "ng serve",
+    "start": "ng serve --port=8100",
     "test": "ng test --browsers=ChromeHeadless",
     "test:ci": "ng test --no-watch --browsers=ChromeHeadless",
     "test:debug": "ng test"
@@ -32,6 +32,8 @@
     "@capacitor/share": "~1.1.0",
     "@capacitor/status-bar": "~1.0.8",
     "@capacitor/storage": "~1.2.3",
+    "@ionic-enterprise/auth": "~3.9.2",
+    "@ionic-enterprise/identity-vault": "~5.7.0",
     "@ionic/angular": "^6.0.0",
     "@ngrx/effects": "~13.2.0",
     "@ngrx/store": "~13.2.0",

@@ -12,6 +12,7 @@ import { StoreModule } from '@ngrx/store';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { PinDialogComponentModule } from './pin-dialog/pin-dialog.module';
 
 @NgModule({
   declarations: [AppComponent],
@@ -21,6 +22,7 @@ import { AppComponent } from './app.component';
     BrowserModule,
     HttpClientModule,
     IonicModule.forRoot(),
+    PinDialogComponentModule,
     StoreModule.forRoot(reducers, {
       metaReducers,
       runtimeChecks: {

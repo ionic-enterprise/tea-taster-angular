@@ -1,7 +1,6 @@
-import { createReducer, on } from '@ngrx/store';
-
 import { TastingNote, Tea } from '@app/models';
 import * as Actions from '@app/store/actions';
+import { createReducer, on } from '@ngrx/store';
 
 export interface DataState {
   notes: Array<TastingNote>;
@@ -28,11 +27,11 @@ export const reducer = createReducer(
     })
   ),
   on(
-    Actions.sessionRestored,
+    Actions.unlockSessionSuccess,
     (state): DataState => ({
       ...state,
-      errorMessage: '',
       loading: true,
+      errorMessage: '',
     })
   ),
   on(

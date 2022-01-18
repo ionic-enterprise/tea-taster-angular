@@ -1,56 +1,37 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Login</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content class="ion-text-center main-content">
+  <div *ngIf="!canUnlock">
+    <ion-list class="ion-padding" *ngIf="displayLockingOptions" data-testid="locking-options">
+      <ion-radio-group [(ngModel)]="unlockMode">
+        <ion-list-header>
+          <ion-label> Session Locking </ion-label>
+        </ion-list-header>
 
-<ion-content class="main-content">
-  <form #loginForm="ngForm">
-    <ion-list>
-      <ion-item>
-        <ion-label position="floating">E-Mail Address</ion-label>
-        <ion-input
-          id="email-input"
-          name="email"
-          type="email"
-          [(ngModel)]="email"
-          #emailInput="ngModel"
-          email
-          required
-        ></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="floating">Password</ion-label>
-        <ion-input
-          id="password-input"
-          name="password"
-          type="password"
-          [(ngModel)]="password"
-          #passwordInput="ngModel"
-          required
-        ></ion-input>
-      </ion-item>
-
-      <div class="error-message">
-        <div *ngIf="emailInput.invalid && (emailInput.dirty || emailInput.touched)">
-          <div *ngIf="emailInput.errors.email">E-Mail Address must have a valid format</div>
-          <div *ngIf="emailInput.errors.required">E-Mail Address is required</div>
-        </div>
-
-        <div *ngIf="passwordInput.invalid && (passwordInput.dirty || passwordInput.touched)">
-          <div *ngIf="passwordInput.errors.required">Password is required</div>
-        </div>
-        <div>{{errorMessage$ | async}}</div>
-      </div>
+        <ion-item *ngFor="let unlockMode of unlockModes">
+          <ion-label>{{ unlockMode.label }}</ion-label>
+          <ion-radio [value]="unlockMode.mode"></ion-radio>
+        </ion-item>
+      </ion-radio-group>
     </ion-list>
-  </form>
-</ion-content>
 
-<ion-footer>
-  <ion-toolbar color="secondary">
-    <ion-button id="signin-button" expand="full" [disabled]="!loginForm.form.valid" (click)="signIn()"
-      >Sign In
-      <ion-icon slot="end" name="log-in-outline"></ion-icon>
-    </ion-button>
-  </ion-toolbar>
-</ion-footer>
+    <div class="unlock-app" (click)="signIn()" data-testid="signin-button">
+      <ion-icon name="log-in-outline"></ion-icon>
+      <div>Sign In</div>
+    </div>
+  </div>
+
+  <div *ngIf="canUnlock">
+    <div class="unlock-app" (click)="unlock()" data-testid="unlock-button">
+      <ion-icon name="lock-open-outline"></ion-icon>
+      <div>Unlock</div>
+    </div>
+
+    <div class="unlock-app" (click)="redo()" data-testid="redo-button">
+      <ion-icon name="arrow-redo-outline"></ion-icon>
+      <div>Redo Sign In</div>
+    </div>
+  </div>
+
+  <div class="error-message">
+    <div>{{ errorMessage$ | async }}</div>
+  </div>
+</ion-content>

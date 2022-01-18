@@ -1,27 +1,44 @@
 import { ComponentFixture, fakeAsync, TestBed, tick, waitForAsync } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
-import { selectAuthErrorMessage } from '@app/store';
-import { login } from '@app/store/actions';
+import { login, unlockSession } from '@app/store/actions';
 import { AuthState, initialState } from '@app/store/reducers/auth.reducer';
-import { IonicModule } from '@ionic/angular';
-import { Store } from '@ngrx/store';
-import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { LoginPage } from './login.page';
+import { AlertController, IonicModule, Platform } from '@ionic/angular';
+import { Store } from '@ngrx/store';
+import { provideMockStore } from '@ngrx/store/testing';
+import { createOverlayControllerMock, createOverlayElementMock, createPlatformMock } from '@test/mocks';
+import { SessionVaultService } from '@app/core';
+import { createSessionVaultServiceMock } from '@app/core/testing';
+import { Device } from '@ionic-enterprise/identity-vault';
 
 describe('LoginPage', () => {
+  let alert: HTMLIonAlertElement;
   let component: LoginPage;
   let fixture: ComponentFixture<LoginPage>;
 
   beforeEach(
     waitForAsync(() => {
+      alert = createOverlayElementMock('Alert');
       TestBed.configureTestingModule({
         declarations: [LoginPage],
-        imports: [FormsModule, IonicModule.forRoot()],
+        imports: [FormsModule, IonicModule],
         providers: [
           provideMockStore<{ auth: AuthState }>({
             initialState: { auth: initialState },
           }),
+          {
+            provide: AlertController,
+            useFactory: () => createOverlayControllerMock('AlertController', alert),
+          },
+          {
+            provide: Platform,
+            useFactory: createPlatformMock,
+          },
+          {
+            provide: SessionVaultService,
+            useFactory: createSessionVaultServiceMock,
+          },
         ],
       }).compileComponents();
 
@@ -35,157 +52,177 @@ describe('LoginPage', () => {
     expect(component).toBeTruthy();
   });
 
-  it('displays the title properly', () => {
-    const title = fixture.debugElement.query(By.css('ion-title'));
-    expect(title.nativeElement.textContent.trim()).toBe('Login');
+  const registerInputBindingTests = () => {
+    describe('sign in button', () => {
+      let button: HTMLIonButtonElement;
+      beforeEach(fakeAsync(() => {
+        button = fixture.nativeElement.querySelector('[data-testid="signin-button"]');
+        fixture.detectChanges();
+        tick();
+      }));
+
+      it('it dispatches login on click', () => {
+        const store = TestBed.inject(Store);
+        const dispatchSpy = spyOn(store, 'dispatch');
+        component.unlockMode = 'SessionPIN';
+        click(button);
+        expect(dispatchSpy).toHaveBeenCalledTimes(1);
+        expect(dispatchSpy).toHaveBeenCalledWith(
+          login({
+            mode: 'SessionPIN',
+          })
+        );
+      });
+    });
+  };
+
+  describe('on mobile', () => {
+    beforeEach(() => {
+      const platform = TestBed.inject(Platform);
+      (platform.is as any).withArgs('hybrid').and.returnValue(true);
+    });
+
+    describe('with a session that can be unlocked', () => {
+      beforeEach(async () => {
+        const vault = TestBed.inject(SessionVaultService);
+        (vault.canUnlock as any).and.returnValue(Promise.resolve(true));
+        await component.ngOnInit();
+        fixture.detectChanges();
+      });
+
+      it('displays the unlock item', () => {
+        const button = fixture.debugElement.query(By.css('[data-testid="unlock-button"]'));
+        expect(button).toBeTruthy();
+      });
+
+      it('hides the sign in button', () => {
+        const button = fixture.debugElement.query(By.css('[data-testid="signin-button"]'));
+        expect(button).toBeFalsy();
+      });
+
+      it('dispatches unlock session with click of unlock item', async () => {
+        const button = fixture.debugElement.query(By.css('[data-testid="unlock-button"]')).nativeElement;
+        const store = TestBed.inject(Store);
+        spyOn(store, 'dispatch');
+        click(button);
+        await fixture.whenStable();
+        expect(store.dispatch).toHaveBeenCalledTimes(1);
+        expect(store.dispatch).toHaveBeenCalledWith(unlockSession());
+      });
+
+      describe('when the session becomes invalid', () => {
+        beforeEach(() => {
+          const vault = TestBed.inject(SessionVaultService);
+          (vault.canUnlock as any).and.returnValue(Promise.resolve(false));
+        });
+
+        it('does not dispatch the unlock', async () => {
+          const unlock = fixture.debugElement.query(By.css('.unlock-app')).nativeElement;
+          const store = TestBed.inject(Store);
+          spyOn(store, 'dispatch');
+          click(unlock);
+          await fixture.whenStable();
+          expect(store.dispatch).not.toHaveBeenCalled();
+        });
+
+        it('alerts the user', async () => {
+          const alertController = TestBed.inject(AlertController);
+          const unlock = fixture.debugElement.query(By.css('.unlock-app')).nativeElement;
+          click(unlock);
+          await fixture.whenStable();
+          expect(alertController.create).toHaveBeenCalledTimes(1);
+          expect(alertController.create).toHaveBeenCalledWith({
+            header: 'Session Terminated',
+            message: 'Your session has been terminated. You must log in again.',
+            buttons: ['OK'],
+          });
+          expect(alert.present).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
+
+    describe('without a session that can be unlocked', () => {
+      beforeEach(async () => {
+        const vault = TestBed.inject(SessionVaultService);
+        (vault.canUnlock as any).and.returnValue(Promise.resolve(false));
+        await component.ngOnInit();
+        fixture.detectChanges();
+      });
+
+      it('does not display the unlock item', () => {
+        const button = fixture.debugElement.query(By.css('[data-testid="unlock-button"]'));
+        expect(button).toBeFalsy();
+      });
+
+      it('displays the sign in button', () => {
+        const button = fixture.debugElement.query(By.css('[data-testid="signin-button"]'));
+        expect(button).toBeTruthy();
+      });
+
+      it('displays the locking options', () => {
+        const sel = fixture.debugElement.query(By.css('[data-testid="locking-options"]'));
+        expect(sel).toBeTruthy();
+      });
+
+      it('includes the base session locking methods', () => {
+        const sel = fixture.debugElement.query(By.css('[data-testid="locking-options"]'));
+        const opt = sel.queryAll(By.css('ion-radio'));
+        expect(opt.length).toBe(3);
+        expect(opt[0].nativeElement.value).toBe('SessionPIN');
+        expect(opt[1].nativeElement.value).toBe('NeverLock');
+        expect(opt[2].nativeElement.value).toBe('ForceLogin');
+      });
+
+      it('defaults the auth mode to the first one', () => {
+        expect(component.unlockMode).toBe('SessionPIN');
+      });
+
+      registerInputBindingTests();
+
+      describe('when biometrics is available', () => {
+        beforeEach(async () => {
+          spyOn(Device, 'isBiometricsEnabled');
+          (Device.isBiometricsEnabled as any).and.returnValue(Promise.resolve(true));
+          await component.ngOnInit();
+          fixture.detectChanges();
+        });
+
+        it('adds biometrics as the first locking option', () => {
+          const sel = fixture.debugElement.query(By.css('[data-testid="locking-options"]'));
+          const opt = sel.queryAll(By.css('ion-radio'));
+          expect(opt.length).toBe(4);
+          expect(opt[0].nativeElement.value).toBe('Device');
+        });
+
+        it('defaults the auth mode to the first one', () => {
+          expect(component.unlockMode).toBe('Device');
+        });
+      });
+    });
   });
 
-  describe('email input binding', () => {
-    it('updates the component model when the input changes', () => {
-      const input = fixture.nativeElement.querySelector('#email-input');
-      setInputValue(input, 'test@test.com');
-      expect(component.email).toEqual('test@test.com');
+  describe('on web', () => {
+    beforeEach(() => {
+      const platform = TestBed.inject(Platform);
+      (platform.is as any).withArgs('hybrid').and.returnValue(false);
     });
 
-    it('updates the input when the component model changes', fakeAsync(() => {
-      component.email = 'testy@mctesterson.com';
-      fixture.detectChanges();
-      tick();
-      const input = fixture.nativeElement.querySelector('#email-input');
-      expect(input.value).toEqual('testy@mctesterson.com');
-    }));
-  });
-
-  describe('password input binding', () => {
-    it('updates the component model when the input changes', () => {
-      const input = fixture.nativeElement.querySelector('#password-input');
-      setInputValue(input, 'MyPas$Word');
-      expect(component.password).toEqual('MyPas$Word');
+    it('displays the login button', () => {
+      const button = fixture.debugElement.query(By.css('[data-testid="signin-button"]'));
+      expect(button).toBeTruthy();
     });
 
-    it('updates the input when the component model changes', fakeAsync(() => {
-      component.password = 'SomePassword';
-      fixture.detectChanges();
-      tick();
-      const input = fixture.nativeElement.querySelector('#password-input');
-      expect(input.value).toEqual('SomePassword');
-    }));
-  });
-
-  describe('signin button', () => {
-    let button: HTMLIonButtonElement;
-    let email: HTMLIonInputElement;
-    let password: HTMLIonInputElement;
-    beforeEach(fakeAsync(() => {
-      button = fixture.nativeElement.querySelector('ion-button');
-      email = fixture.nativeElement.querySelector('#email-input');
-      password = fixture.nativeElement.querySelector('#password-input');
-      fixture.detectChanges();
-      tick();
-    }));
-
-    it('starts disabled', () => {
-      expect(button.disabled).toEqual(true);
+    it('does not allow selection of an auth mode', () => {
+      const sel = fixture.debugElement.query(By.css('[data-testid="locking-options"]'));
+      expect(sel).toBeFalsy();
     });
 
-    it('is disabled with just an email address', () => {
-      setInputValue(email, 'test@test.com');
-      expect(button.disabled).toEqual(true);
-    });
-
-    it('is disabled with just a password', () => {
-      setInputValue(password, 'ThisI$MyPassw0rd');
-      expect(button.disabled).toEqual(true);
-    });
-
-    it('is enabled with both an email address and a password', () => {
-      setInputValue(email, 'test@test.com');
-      setInputValue(password, 'ThisI$MyPassw0rd');
-      expect(button.disabled).toEqual(false);
-    });
-
-    it('is disabled when the email address is not a valid format', () => {
-      setInputValue(email, 'testtest.com');
-      setInputValue(password, 'ThisI$MyPassw0rd');
-      expect(button.disabled).toEqual(true);
-    });
-
-    it('dispatches login on click', () => {
-      const store = TestBed.inject(Store);
-      const dispatchSpy = spyOn(store, 'dispatch');
-      setInputValue(email, 'test@test.com');
-      setInputValue(password, 'MyPassW0rd');
-      click(button);
-      expect(dispatchSpy).toHaveBeenCalledTimes(1);
-      expect(dispatchSpy).toHaveBeenCalledWith(login({ email: 'test@test.com', password: 'MyPassW0rd' }));
-    });
-  });
-
-  describe('error messages', () => {
-    let errorDiv: HTMLDivElement;
-    let email: HTMLIonInputElement;
-    let password: HTMLIonInputElement;
-    beforeEach(fakeAsync(() => {
-      errorDiv = fixture.nativeElement.querySelector('.error-message');
-      email = fixture.nativeElement.querySelector('#email-input');
-      password = fixture.nativeElement.querySelector('#password-input');
-      fixture.detectChanges();
-      tick();
-    }));
-
-    it('starts with no error message', () => {
-      expect(errorDiv.textContent).toEqual('');
-    });
-
-    it('displays an error message if the e-mail address is dirty and empty', () => {
-      setInputValue(email, 'test@test.com');
-      setInputValue(email, '');
-      expect(errorDiv.textContent.trim()).toEqual('E-Mail Address is required');
-    });
-
-    it('displays an error message if the e-mail address has an invalid format', () => {
-      setInputValue(email, 'testtest.com');
-      expect(errorDiv.textContent.trim()).toEqual('E-Mail Address must have a valid format');
-    });
-
-    it('clears the error message when the e-mail address has a valid format', () => {
-      setInputValue(email, 'test@test.com');
-      expect(errorDiv.textContent.trim()).toEqual('');
-    });
-
-    it('displays an error message if the password is dirty and empty', () => {
-      setInputValue(password, 'thisisapassword');
-      setInputValue(password, '');
-      expect(errorDiv.textContent.trim()).toEqual('Password is required');
-    });
-
-    it('displays the auth state error message if there is one', () => {
-      const store = TestBed.inject(Store) as MockStore;
-      const mockErrorMessageSelector = store.overrideSelector(selectAuthErrorMessage, '');
-      store.refreshState();
-      fixture.detectChanges();
-      expect(errorDiv.textContent.trim()).toEqual('');
-      mockErrorMessageSelector.setResult('Invalid Email or Password');
-      store.refreshState();
-      fixture.detectChanges();
-      expect(errorDiv.textContent.trim()).toEqual('Invalid Email or Password');
-      mockErrorMessageSelector.setResult('');
-      store.refreshState();
-      fixture.detectChanges();
-      expect(errorDiv.textContent.trim()).toEqual('');
-    });
+    registerInputBindingTests();
   });
 
   const click = (button: HTMLElement) => {
     const event = new Event('click');
     button.dispatchEvent(event);
-    fixture.detectChanges();
-  };
-
-  const setInputValue = (input: HTMLIonInputElement, value: string) => {
-    const event = new InputEvent('ionChange');
-    input.value = value;
-    input.dispatchEvent(event);
     fixture.detectChanges();
   };
 });
