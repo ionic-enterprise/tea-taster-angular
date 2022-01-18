@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
-import { AuthenticationService } from '@app/core';
-import { SessionVaultService } from '@app/core/session-vault/session-vault.service';
+import { NavController } from '@ionic/angular';
+import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { from, of } from 'rxjs';
+import { catchError, exhaustMap, map, tap } from 'rxjs/operators';
+
 import {
   login,
   loginFailure,
@@ -8,12 +11,13 @@ import {
   logout,
   logoutFailure,
   logoutSuccess,
+  sessionLocked,
   unauthError,
+  unlockSession,
+  unlockSessionFailure,
+  unlockSessionSuccess,
 } from '@app/store/actions';
-import { NavController } from '@ionic/angular';
-import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { of } from 'rxjs';
-import { catchError, exhaustMap, map, tap } from 'rxjs/operators';
+import { AuthenticationService, SessionVaultService } from '@app/core';
 
 @Injectable()
 export class AuthEffects {
@@ -24,29 +28,28 @@ export class AuthEffects {
         this.auth.login(action.email, action.password).pipe(
           tap((session) => {
             if (session) {
-              this.sessionVault.login(session);
+              this.sessionVault.login(session, action.mode);
             }
           }),
-          map((session) => {
-            if (session) {
-              return loginSuccess({ session });
-            } else {
-              return loginFailure({ errorMessage: 'Invalid Username or Password' });
-            }
-          }),
-          catchError((error) => of(loginFailure({ errorMessage: 'Unknown error in login' })))
+          map((session) =>
+            session ? loginSuccess({ session }) : loginFailure({ errorMessage: 'Invalid Username or Password' })
+          ),
+          catchError(() => of(loginFailure({ errorMessage: 'Unknown error in login' })))
         )
       )
     )
   );
 
-  loginSuccess$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(loginSuccess),
-        tap(() => this.navController.navigateRoot(['/']))
-      ),
-    { dispatch: false }
+  unlockSession$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(unlockSession),
+      exhaustMap(() =>
+        from(this.sessionVault.restoreSession()).pipe(
+          map((session) => (session ? unlockSessionSuccess() : unlockSessionFailure())),
+          catchError(() => of(unlockSessionFailure()))
+        )
+      )
+    )
   );
 
   logout$ = createEffect(() =>
@@ -56,17 +59,26 @@ export class AuthEffects {
         this.auth.logout().pipe(
           tap(() => this.sessionVault.logout()),
           map(() => logoutSuccess()),
-          catchError((error) => of(logoutFailure({ errorMessage: 'Unknown error in logout' })))
+          catchError(() => of(logoutFailure({ errorMessage: 'Unknown error in logout' })))
         )
       )
     )
   );
 
-  logoutSuccess$ = createEffect(
+  navigateToLogin$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(logoutSuccess),
+        ofType(logoutSuccess, sessionLocked),
         tap(() => this.navController.navigateRoot(['/', 'login']))
+      ),
+    { dispatch: false }
+  );
+
+  navigateToRoot$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(loginSuccess, unlockSessionSuccess),
+        tap(() => this.navController.navigateRoot(['/']))
       ),
     { dispatch: false }
   );

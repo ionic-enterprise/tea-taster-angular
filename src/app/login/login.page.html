@@ -6,30 +6,40 @@
 
 <ion-content class="main-content">
   <form #loginForm="ngForm">
-    <ion-list>
-      <ion-item>
-        <ion-label position="floating">E-Mail Address</ion-label>
-        <ion-input
-          id="email-input"
-          name="email"
-          type="email"
-          [(ngModel)]="email"
-          #emailInput="ngModel"
-          email
-          required
-        ></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="floating">Password</ion-label>
-        <ion-input
-          id="password-input"
-          name="password"
-          type="password"
-          [(ngModel)]="password"
-          #passwordInput="ngModel"
-          required
-        ></ion-input>
-      </ion-item>
+    <div *ngIf="!canUnlock">
+      <ion-list>
+        <ion-item>
+          <ion-label position="floating">E-Mail Address</ion-label>
+          <ion-input
+            id="email-input"
+            name="email"
+            type="email"
+            [(ngModel)]="email"
+            #emailInput="ngModel"
+            email
+            required
+          ></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="floating">Password</ion-label>
+          <ion-input
+            id="password-input"
+            name="password"
+            type="password"
+            [(ngModel)]="password"
+            #passwordInput="ngModel"
+            required
+          ></ion-input>
+        </ion-item>
+        <ion-item *ngIf="displayLockingOptions">
+          <ion-label>Session Locking</ion-label>
+          <ion-select id="auth-mode-select" name="auth-mode" [(ngModel)]="authMode">
+            <ion-select-option *ngFor="let authMode of authModes" [value]="authMode.mode"
+              >{{authMode.label}}</ion-select-option
+            >
+          </ion-select>
+        </ion-item>
+      </ion-list>
 
       <div class="error-message">
         <div *ngIf="emailInput.invalid && (emailInput.dirty || emailInput.touched)">
@@ -40,16 +50,21 @@
         <div *ngIf="passwordInput.invalid && (passwordInput.dirty || passwordInput.touched)">
           <div *ngIf="passwordInput.errors.required">Password is required</div>
         </div>
-        <div>{{errorMessage$ | async}}</div>
+        <div>{{ errorMessage$ | async }}</div>
       </div>
-    </ion-list>
+    </div>
+
+    <div class="unlock-app ion-text-center" *ngIf="canUnlock" (click)="unlock()">
+      <ion-icon name="lock-open-outline"></ion-icon>
+      <div>Unlock</div>
+    </div>
   </form>
 </ion-content>
 
 <ion-footer>
   <ion-toolbar color="secondary">
     <ion-button id="signin-button" expand="full" [disabled]="!loginForm.form.valid" (click)="signIn()"
-      >Sign In
+      >{{ canUnlock ? 'Sign In Instead' : 'Sign In' }}
       <ion-icon slot="end" name="log-in-outline"></ion-icon>
     </ion-button>
   </ion-toolbar>

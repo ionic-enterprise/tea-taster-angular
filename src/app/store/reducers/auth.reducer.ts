@@ -62,6 +62,10 @@ export const reducer = createReducer(
       errorMessage,
     })
   ),
+  on(Actions.sessionLocked, (state): AuthState => {
+    const { session, ...newState } = state;
+    return newState;
+  }),
   on(
     Actions.sessionRestored,
     (state, { session }): AuthState => ({
